@@ -1,0 +1,247 @@
+{
+  "workflow": {
+    "nodes": [
+      {
+        "id": "plugin-metadata",
+        "type": "modifier",
+        "position": {
+          "x": 240,
+          "y": 160
+        },
+        "data": {
+          "modifier": {
+            "name": "K-means Clustering",
+            "key": "kmeans-clustering",
+            "icon": "HiCube",
+            "author": "",
+            "license": "MIT",
+            "version": "1.0.0",
+            "homepage": "",
+            "description": "Identificacion de estructura cristalina y bordes de grano por clustering K-means sobre propiedades por atomo (esfuerzo de von Mises, energia potencial y volumen atomico). Metodologia de Amigo et al. (2020). Agrupa los atomos por cluster_id (FCC vs. borde de grano)."
+          }
+        }
+      },
+      {
+        "id": "plugin-arguments",
+        "type": "arguments",
+        "position": {
+          "x": 528,
+          "y": 208
+        },
+        "data": {
+          "arguments": {
+            "arguments": [
+              {
+                "argument": "n_clusters",
+                "type": "number",
+                "label": "Number of clusters",
+                "default": 2,
+                "min": 2,
+                "step": 1
+              },
+              {
+                "argument": "n_init",
+                "type": "number",
+                "label": "K-means initializations",
+                "default": 50,
+                "min": 1,
+                "step": 1
+              },
+              {
+                "argument": "seed",
+                "type": "number",
+                "label": "Random seed",
+                "default": 36,
+                "min": 0,
+                "step": 1
+              },
+              {
+                "argument": "col_svm",
+                "type": "string",
+                "label": "Von Mises stress column",
+                "default": "Svm"
+              },
+              {
+                "argument": "col_epot",
+                "type": "string",
+                "label": "Potential energy column",
+                "default": "Epot"
+              },
+              {
+                "argument": "col_vol",
+                "type": "string",
+                "label": "Atomic volume column",
+                "default": "Vol"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "trajectory-context",
+        "type": "context",
+        "position": {
+          "x": 816,
+          "y": 160
+        },
+        "data": {
+          "context": {
+            "source": "trajectory_dumps"
+          }
+        }
+      },
+      {
+        "id": "foreach-trajectory-dumps",
+        "type": "forEach",
+        "position": {
+          "x": 1088,
+          "y": 208
+        },
+        "data": {
+          "forEach": {
+            "iterableSource": "{{ trajectory-context.trajectory_dumps }}"
+          }
+        }
+      },
+      {
+        "id": "analysis-entrypoint",
+        "type": "entrypoint",
+        "position": {
+          "x": 1392,
+          "y": 208
+        },
+        "data": {
+          "entrypoint": {
+            "type": "python-script",
+            "binary": "kmeans-clustering-plugin.zip",
+            "binaryObjectPath": "__UPLOAD_BINARY_OBJECT_PATH__",
+            "binaryFileName": "kmeans-clustering-plugin.zip",
+            "entrypointScript": "scripts/kmeans_plugin_wrapper.py",
+            "requirementsFile": "numpy\npandas\npyarrow\nscikit-learn",
+            "arguments": "{{ foreach-trajectory-dumps.currentValue.path }} {{ foreach-trajectory-dumps.outputPath }} {{ plugin-arguments.as_str }}",
+            "timeout": -1
+          }
+        }
+      },
+      {
+        "id": "primary-exposure",
+        "type": "exposure",
+        "position": {
+          "x": 1712,
+          "y": 208
+        },
+        "data": {
+          "exposure": {
+            "name": "K-means Clustering",
+            "icon": "HiCube",
+            "results": "kmeans.parquet",
+            "iterable": ""
+          }
+        }
+      },
+      {
+        "id": "kmeans-model-exposure",
+        "type": "exposure",
+        "position": {
+          "x": 1712,
+          "y": 336
+        },
+        "data": {
+          "exposure": {
+            "name": "K-means Model",
+            "icon": "HiCube",
+            "results": "atoms.parquet",
+            "iterable": "",
+            "properties": [
+              {
+                "key": "cluster_id",
+                "label": "Cluster ID",
+                "type": "int"
+              },
+              {
+                "key": "Svm",
+                "label": "Von Mises stress",
+                "type": "float"
+              },
+              {
+                "key": "Epot",
+                "label": "Potential energy",
+                "type": "float"
+              },
+              {
+                "key": "Vol",
+                "label": "Atomic volume",
+                "type": "float"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "kmeans-model-export",
+        "type": "export",
+        "position": {
+          "x": 2032,
+          "y": 336
+        },
+        "data": {
+          "export": {
+            "exporter": "AtomisticExporter",
+            "type": "glb"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-metadata-arguments",
+        "source": "plugin-metadata",
+        "sourceHandle": "output",
+        "target": "plugin-arguments",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-arguments-context",
+        "source": "plugin-arguments",
+        "sourceHandle": "output",
+        "target": "trajectory-context",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-context-foreach",
+        "source": "trajectory-context",
+        "sourceHandle": "output",
+        "target": "foreach-trajectory-dumps",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-foreach-entrypoint",
+        "source": "foreach-trajectory-dumps",
+        "sourceHandle": "output",
+        "target": "analysis-entrypoint",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-entrypoint-primary-exposure",
+        "source": "analysis-entrypoint",
+        "sourceHandle": "output",
+        "target": "primary-exposure",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-entrypoint-kmeans-model-exposure",
+        "source": "analysis-entrypoint",
+        "sourceHandle": "output",
+        "target": "kmeans-model-exposure",
+        "targetHandle": "input"
+      },
+      {
+        "id": "edge-kmeans-model-exposure-kmeans-model-export",
+        "source": "kmeans-model-exposure",
+        "sourceHandle": "output",
+        "target": "kmeans-model-export",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}
