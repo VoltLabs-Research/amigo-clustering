@@ -22,62 +22,6 @@
         }
       },
       {
-        "id": "plugin-arguments",
-        "type": "arguments",
-        "position": {
-          "x": 528,
-          "y": 208
-        },
-        "data": {
-          "arguments": {
-            "arguments": [
-              {
-                "argument": "n_clusters",
-                "type": "number",
-                "label": "Number of clusters",
-                "default": 2,
-                "min": 2,
-                "step": 1
-              },
-              {
-                "argument": "n_init",
-                "type": "number",
-                "label": "K-means initializations",
-                "default": 50,
-                "min": 1,
-                "step": 1
-              },
-              {
-                "argument": "seed",
-                "type": "number",
-                "label": "Random seed",
-                "default": 36,
-                "min": 0,
-                "step": 1
-              },
-              {
-                "argument": "col_svm",
-                "type": "string",
-                "label": "Von Mises stress column",
-                "default": "Svm"
-              },
-              {
-                "argument": "col_epot",
-                "type": "string",
-                "label": "Potential energy column",
-                "default": "Epot"
-              },
-              {
-                "argument": "col_vol",
-                "type": "string",
-                "label": "Atomic volume column",
-                "default": "Vol"
-              }
-            ]
-          }
-        }
-      },
-      {
         "id": "trajectory-context",
         "type": "context",
         "position": {
@@ -118,7 +62,7 @@
             "binaryFileName": "kmeans-clustering-plugin.zip",
             "entrypointScript": "scripts/kmeans_plugin_wrapper.py",
             "requirementsFile": "numpy\npandas\npyarrow\nscikit-learn",
-            "arguments": "{{ foreach-trajectory-dumps.currentValue.path }} {{ foreach-trajectory-dumps.outputPath }} {{ plugin-arguments.as_str }}",
+            "arguments": "{{ foreach-trajectory-dumps.currentValue.path }} {{ foreach-trajectory-dumps.outputPath }}",
             "timeout": -1
           }
         }
@@ -194,20 +138,6 @@
     ],
     "edges": [
       {
-        "id": "edge-metadata-arguments",
-        "source": "plugin-metadata",
-        "sourceHandle": "output",
-        "target": "plugin-arguments",
-        "targetHandle": "input"
-      },
-      {
-        "id": "edge-arguments-context",
-        "source": "plugin-arguments",
-        "sourceHandle": "output",
-        "target": "trajectory-context",
-        "targetHandle": "input"
-      },
-      {
         "id": "edge-context-foreach",
         "source": "trajectory-context",
         "sourceHandle": "output",
@@ -241,7 +171,22 @@
         "sourceHandle": "output",
         "target": "kmeans-model-export",
         "targetHandle": "input"
+      },
+      {
+        "id": "edge-plugin-metadata-trajectory-context",
+        "source": "plugin-metadata",
+        "sourceHandle": "output",
+        "target": "trajectory-context",
+        "targetHandle": "input"
       }
     ]
+  },
+  "interface": {
+    "version": 2,
+    "provides": {
+      "volt/per-atom-properties@1": {
+        "atoms": "atoms.parquet"
+      }
+    }
   }
 }

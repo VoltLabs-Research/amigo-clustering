@@ -3,16 +3,42 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import argparse
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+OPTIONS = (
+    {'flag': '--n_clusters', 'type': 'int', 'help': 'Number of k-means clusters.', 'default': '2'},
+    {'flag': '--n_init', 'type': 'int', 'help': 'Number of centroid seedings.', 'default': '50'},
+    {'flag': '--seed', 'type': 'int', 'help': 'Random seed.', 'default': '36'},
+    {'flag': '--col_svm', 'type': 'string', 'help': 'Shear-strain column name.', 'default': 'Svm'},
+    {'flag': '--col_epot', 'type': 'string', 'help': 'Potential-energy column name.', 'default': 'Epot'},
+    {'flag': '--col_vol', 'type': 'string', 'help': 'Atomic-volume column name.', 'default': 'Vol'},
+)
+
+DESCRIPTOR = {
+    'descriptor': 1,
+    'name': 'kmeans',
+    'description': 'AMIGO k-means clustering',
+    'frameMode': 'single',
+    'needsReferenceFrame': False,
+    'positional': ['input', 'output_base'],
+    'options': list(OPTIONS),
+}
+
+if __name__ == '__main__' and '--describe' in sys.argv[1:]:
+    print(json.dumps(DESCRIPTOR))
+    raise SystemExit(0)
 
 import numpy as np
 
 import clustering
 import dump
 import outputs
+
+_PARSER_TYPES = {'int': int, 'float': float, 'string': str}
 
 
 @dataclass(frozen=True)
@@ -31,18 +57,18 @@ class RunConfig:
         return [self.col_svm, self.col_epot, self.col_vol]
 
 
-def parse_args(args):
+def build_parser():
     parser = argparse.ArgumentParser(prog='kmeans', add_help=False)
     parser.add_argument('input_path')
     parser.add_argument('output_base')
-    parser.add_argument('--n_clusters', type=int, default=2)
-    parser.add_argument('--n_init', type=int, default=50)
-    parser.add_argument('--seed', type=int, default=36)
-    parser.add_argument('--col_svm', default='Svm')
-    parser.add_argument('--col_epot', default='Epot')
-    parser.add_argument('--col_vol', default='Vol')
+    for option in OPTIONS:
+        caster = _PARSER_TYPES[option['type']]
+        parser.add_argument(option['flag'], type=caster, default=caster(option['default']))
+    return parser
 
-    namespace, _ = parser.parse_known_args(args)
+
+def parse_args(args):
+    namespace, _ = build_parser().parse_known_args(args)
 
     return RunConfig(**vars(namespace))
 
