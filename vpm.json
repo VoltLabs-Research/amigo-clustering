@@ -1,6 +1,6 @@
 {
   "name": "@voltlabs/kmeans-clustering",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kind": "workflow",
   "publisher": "voltlabs",
   "description": "Crystalline-structure and grain-boundary identification via K-means clustering of per-atom features (von Mises stress, potential energy, atomic volume), after Amigo et al. (2020). Groups atoms by cluster_id (FCC vs. grain boundary).",
