@@ -38,6 +38,7 @@ import clustering
 import dump
 import outputs
 from log import Stopwatch, log
+from progress import ProgressSteps, job_progress
 
 _PARSER_TYPES = {'int': int, 'float': float, 'string': str}
 
@@ -77,6 +78,7 @@ def parse_args(args):
 def run(args):
     config = parse_args(args)
     run_timer = Stopwatch()
+    job_progress.start()
     log('Parameters: ' + ', '.join(
         f"{option['flag'][2:]}={getattr(config, option['flag'][2:])}" for option in OPTIONS
     ))
@@ -84,25 +86,32 @@ def run(args):
     if config.n_clusters < 2:
         raise ValueError('n_clusters must be >= 2')
 
-    log(f'Parsing LAMMPS file: {config.input_path}')
-    timer = Stopwatch()
-    atoms = dump.load_atoms(config.input_path, config.feature_columns)
-    log(f'Successfully loaded {len(atoms)} atoms in {timer.elapsed()}.')
-    log(f'Atom columns ({len(atoms.columns)}): {" ".join(str(name) for name in atoms.columns)}')
+    # Reading the dump, K-means (one call into scikit-learn), then the outputs.
+    with ProgressSteps(1, 8, 1) as steps:
+        job_progress.set_text('Reading the input frame')
+        log(f'Parsing LAMMPS file: {config.input_path}')
+        timer = Stopwatch()
+        atoms = dump.load_atoms(config.input_path, config.feature_columns)
+        log(f'Successfully loaded {len(atoms)} atoms in {timer.elapsed()}.')
+        log(f'Atom columns ({len(atoms.columns)}): {" ".join(str(name) for name in atoms.columns)}')
+        steps.next()
 
-    cluster_id, cluster_centers = clustering.run_kmeans(
-        atoms[config.feature_columns], config.n_clusters, config.n_init, seed=config.seed
-    )
-    label_map = clustering.assign_labels(cluster_centers, config.n_clusters)
-    fcc_id = next((cluster for cluster, label in label_map.items() if label == 'FCC'), None)
-    log(f'Labeled cluster {fcc_id} as FCC (lowest {config.col_svm} centroid); ' + ', '.join(
-        f'cluster {cluster} as {label}' for cluster, label in sorted(label_map.items()) if cluster != fcc_id
-    ))
+        job_progress.set_text(f'Running K-means ({config.n_init} initializations)')
+        cluster_id, cluster_centers = clustering.run_kmeans(
+            atoms[config.feature_columns], config.n_clusters, config.n_init, seed=config.seed
+        )
+        label_map = clustering.assign_labels(cluster_centers, config.n_clusters)
+        fcc_id = next((cluster for cluster, label in label_map.items() if label == 'FCC'), None)
+        log(f'Labeled cluster {fcc_id} as FCC (lowest {config.col_svm} centroid); ' + ', '.join(
+            f'cluster {cluster} as {label}' for cluster, label in sorted(label_map.items()) if cluster != fcc_id
+        ))
+        steps.next()
 
-    atoms_path = outputs.write_atoms_parquet(config.output_base, atoms, cluster_id, label_map, config.feature_columns)
-    log(f'Exported atoms data to: {atoms_path}')
-    summary_path = outputs.write_summary_parquet(config.output_base, atoms, cluster_id, label_map, config.col_svm)
-    log(f'Summary parquet written to {summary_path}')
+        job_progress.set_text('Writing outputs')
+        atoms_path = outputs.write_atoms_parquet(config.output_base, atoms, cluster_id, label_map, config.feature_columns)
+        log(f'Exported atoms data to: {atoms_path}')
+        summary_path = outputs.write_summary_parquet(config.output_base, atoms, cluster_id, label_map, config.col_svm)
+        log(f'Summary parquet written to {summary_path}')
 
     result = {
         'ok': True,
@@ -111,6 +120,7 @@ def run(args):
         'num_clusters': int(np.unique(cluster_id).size),
     }
     log(f'K-means clustering completed in {run_timer.elapsed()}.')
+    job_progress.finish()
     return result
 
 
