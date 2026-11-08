@@ -94,9 +94,7 @@ def run(args):
         atoms = dump.load_atoms(config.input_path, config.feature_columns)
         log(f'Successfully loaded {len(atoms)} atoms in {timer.elapsed()}.')
         log(f'Atom columns ({len(atoms.columns)}): {" ".join(str(name) for name in atoms.columns)}')
-        steps.next()
-
-        job_progress.set_text(f'Running K-means ({config.n_init} initializations)')
+        steps.next(f'Running K-means ({config.n_init} initializations)')
         cluster_id, cluster_centers = clustering.run_kmeans(
             atoms[config.feature_columns], config.n_clusters, config.n_init, seed=config.seed
         )
@@ -105,9 +103,7 @@ def run(args):
         log(f'Labeled cluster {fcc_id} as FCC (lowest {config.col_svm} centroid); ' + ', '.join(
             f'cluster {cluster} as {label}' for cluster, label in sorted(label_map.items()) if cluster != fcc_id
         ))
-        steps.next()
-
-        job_progress.set_text('Writing outputs')
+        steps.next('Writing outputs')
         atoms_path = outputs.write_atoms_parquet(config.output_base, atoms, cluster_id, label_map, config.feature_columns)
         log(f'Exported atoms data to: {atoms_path}')
         summary_path = outputs.write_summary_parquet(config.output_base, atoms, cluster_id, label_map, config.col_svm)
