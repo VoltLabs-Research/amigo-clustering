@@ -15,7 +15,7 @@
             "icon": "HiCube",
             "author": "",
             "license": "MIT",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "homepage": "",
             "description": "Identificacion de estructura cristalina y bordes de grano por clustering K-means sobre propiedades por atomo (esfuerzo de von Mises, energia potencial y volumen atomico). Metodologia de Amigo et al. (2020). Agrupa los atomos por cluster_id (FCC vs. borde de grano)."
           }
