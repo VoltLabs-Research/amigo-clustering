@@ -12,6 +12,7 @@
           "modifier": {
             "name": "K-means Clustering",
             "key": "kmeans-clustering",
+            "category": "Clustering",
             "icon": "HiCube",
             "author": "",
             "license": "MIT",
