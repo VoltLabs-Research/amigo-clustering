@@ -2,19 +2,15 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
-from log import Stopwatch, log, warn
+
+class ClusterLabels(dict):
+    """The label of each K-means cluster: FCC for the lowest Svm centroid, a grain boundary for every other."""
 
 
-def run_kmeans(features, n_clusters, n_init, seed=36, max_iter=200, scale_range=(0, 10)):
-    names = [str(name) for name in features.columns]
-    log(f'Feature matrix: {features.shape[0]} atoms x {features.shape[1]} features ({", ".join(names)})')
-
+def run_kmeans(features, n_clusters, n_init, log, seed=36, max_iter=200, scale_range=(0, 10)):
     scaler = MinMaxScaler(feature_range=scale_range)
     scaled = scaler.fit_transform(features)
-    ranges = ', '.join(
-        f'{name} {low:.6g}..{high:.6g}' for name, low, high in zip(names, scaler.data_min_, scaler.data_max_)
-    )
-    log(f'Min-max scaled every feature to [{scale_range[0]}, {scale_range[1]}]: {ranges}')
+    log.dump(scaler)
 
     model = KMeans(
         n_clusters=n_clusters,
@@ -24,20 +20,8 @@ def run_kmeans(features, n_clusters, n_init, seed=36, max_iter=200, scale_range=
         n_init=n_init,
         algorithm='elkan',
     )
-    log(f'Running K-means: k={n_clusters}, n_init={n_init}, max_iter={max_iter}, init=k-means++, '
-        f'algorithm=elkan, seed={seed}...')
-    timer = Stopwatch()
     labels = model.fit_predict(scaled)
-    log(f'K-means done in {timer.elapsed()}: best of {n_init} initialization(s) took {model.n_iter_} '
-        f'iteration(s), inertia {model.inertia_:.6g}')
-    if model.n_iter_ >= max_iter:
-        warn(f'the best K-means run used all max_iter={max_iter} iterations and may not have converged')
-
-    sizes = np.bincount(labels, minlength=n_clusters)
-    for cluster, center in enumerate(scaler.inverse_transform(model.cluster_centers_)):
-        centroid = ', '.join(f'{name} {value:.6g}' for name, value in zip(names, center))
-        log(f'  Cluster {cluster}: {sizes[cluster]} atoms ({100.0 * sizes[cluster] / len(labels):.1f}%), '
-            f'centroid {centroid}')
+    log.dump(model)
 
     return labels.astype(np.int32), model.cluster_centers_
 
@@ -47,9 +31,9 @@ def assign_labels(cluster_centers, n_clusters):
     fcc_id = int(np.argmin(svm_means))
 
     if n_clusters == 2:
-        return {fcc_id: 'FCC', 1 - fcc_id: 'Grain Boundary'}
+        return ClusterLabels({fcc_id: 'FCC', 1 - fcc_id: 'Grain Boundary'})
 
-    labels = {}
+    labels = ClusterLabels()
     boundary = 1
     for cluster in range(n_clusters):
         if cluster == fcc_id:
